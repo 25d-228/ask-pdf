@@ -1,7 +1,9 @@
+.claude/**
 .vscode/**
 .vscode-test/**
 src/**
 out/**
+node_modules/**
 .gitignore
 .nvmrc
 esbuild.js
@@ -13,5 +15,5 @@ eslint.config.mjs
 .eslintcache
 ask-pdf-development-plan.md
 claudecode-nvim-analysis.md
-
-node_modules/**
+*.pdf
+*.vsix
