@@ -1,0 +1,85 @@
+{
+  "name": "ask-pdf",
+  "displayName": "ask-pdf",
+  "description": "Render PDFs in a VS Code webview and send selected passages to Claude Code.",
+  "version": "0.1.0",
+  "publisher": "vibe-dog",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=20.11.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onCustomEditor:askPdf.preview"
+  ],
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "askPdf.preview",
+        "displayName": "Ask PDF",
+        "selector": [
+          {
+            "filenamePattern": "*.pdf"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ask-pdf.openPreview",
+        "title": "Open PDF Preview",
+        "category": "Ask PDF",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "ask-pdf.openPreview",
+          "when": "resourceExtname == .pdf && activeCustomEditorId != askPdf.preview",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Ask PDF",
+      "properties": {
+        "ask-pdf.showFloatingButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the floating action bar (Claude) when text is selected in the PDF preview."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "pdfjs-dist": "^4.7.76",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@types/ws": "^8.5.13",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.17.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0"
+  }
+}
