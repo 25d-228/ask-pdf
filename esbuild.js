@@ -1,7 +1,18 @@
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
 
 const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
+
+function copyPdfjsAssets() {
+  const src = path.join('node_modules', 'pdfjs-dist', 'build');
+  const dst = path.join('dist', 'pdfjs');
+  fs.mkdirSync(dst, { recursive: true });
+  for (const file of ['pdf.min.mjs', 'pdf.worker.min.mjs']) {
+    fs.copyFileSync(path.join(src, file), path.join(dst, file));
+  }
+}
 
 /**
  * @type {import('esbuild').Plugin}
@@ -38,6 +49,8 @@ async function main() {
     logLevel: 'silent',
     plugins: [esbuildProblemMatcherPlugin],
   });
+
+  copyPdfjsAssets();
 
   if (watch) {
     await ctx.watch();
