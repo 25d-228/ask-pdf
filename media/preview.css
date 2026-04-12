@@ -97,3 +97,72 @@ body {
 .textLayer .endOfContent.active {
   top: 0;
 }
+
+#ask-bar {
+  display: none;
+  position: absolute;
+  z-index: 100;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+  user-select: none;
+}
+
+#ask-bar button {
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  border: none;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+}
+
+#ask-bar button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+#zoom-bar {
+  position: fixed;
+  top: 8px;
+  right: 12px;
+  z-index: 101;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--vscode-editorWidget-foreground);
+  border: 1px solid var(--vscode-editorWidget-border);
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  user-select: none;
+}
+
+#zoom-bar button {
+  background: transparent;
+  color: var(--vscode-editor-foreground);
+  border: none;
+  padding: 2px 8px;
+  font: inherit;
+  cursor: pointer;
+  border-radius: 3px;
+  min-width: 24px;
+}
+
+#zoom-bar button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+#zoom-bar .zoom-label {
+  min-width: 42px;
+  text-align: center;
+  padding: 0 4px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}

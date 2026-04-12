@@ -1,5 +1,6 @@
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
+import { formatPageRef } from './pageMapper';
 
 class PdfDocument implements vscode.CustomDocument {
   constructor(
@@ -52,12 +53,46 @@ export class AskPdfEditorProvider implements vscode.CustomReadonlyEditorProvider
       webview.postMessage({ type: 'pdfData', data: base64 });
     };
 
-    const readyListener = webview.onDidReceiveMessage((msg) => {
-      if (msg && msg.type === 'ready') {
+    const postShowFloatingButton = (): void => {
+      const enabled = vscode.workspace
+        .getConfiguration('ask-pdf')
+        .get<boolean>('showFloatingButton', true);
+      webview.postMessage({ type: 'updateShowFloatingButton', enabled });
+    };
+
+    const messageListener = webview.onDidReceiveMessage((msg) => {
+      if (!msg || typeof msg !== 'object') {
+        return;
+      }
+      if (msg.type === 'ready') {
         postPdfData();
+        postShowFloatingButton();
+        return;
+      }
+      if (msg.type === 'askClaude') {
+        const startPage = Number(msg.startPage);
+        const endPage = Number(msg.endPage);
+        const ref = formatPageRef(document.uri.fsPath, startPage, endPage);
+        console.log('[ask-pdf] askClaude', {
+          ref,
+          startPage,
+          endPage,
+          text: typeof msg.text === 'string' ? msg.text : '',
+        });
+        return;
       }
     });
-    webviewPanel.onDidDispose(() => readyListener.dispose());
+
+    const configListener = vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('ask-pdf.showFloatingButton')) {
+        postShowFloatingButton();
+      }
+    });
+
+    webviewPanel.onDidDispose(() => {
+      messageListener.dispose();
+      configListener.dispose();
+    });
   }
 
   private buildHtml(webview: vscode.Webview): string {
