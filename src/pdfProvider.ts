@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
-import { formatPageRef } from './pageMapper';
+import { broadcast, isConnected } from './claudeServer';
 
 class PdfDocument implements vscode.CustomDocument {
   constructor(
@@ -72,13 +72,18 @@ export class AskPdfEditorProvider implements vscode.CustomReadonlyEditorProvider
       if (msg.type === 'askClaude') {
         const startPage = Number(msg.startPage);
         const endPage = Number(msg.endPage);
-        const ref = formatPageRef(document.uri.fsPath, startPage, endPage);
-        console.log('[ask-pdf] askClaude', {
-          ref,
-          startPage,
-          endPage,
-          text: typeof msg.text === 'string' ? msg.text : '',
+        if (!isConnected()) {
+          vscode.window.showWarningMessage(
+            'Ask PDF: No Claude CLI connected. Run "claude" in a terminal first.'
+          );
+          return;
+        }
+        broadcast('at_mentioned', {
+          filePath: document.uri.fsPath,
+          lineStart: startPage,
+          lineEnd: endPage,
         });
+        vscode.commands.executeCommand('workbench.action.terminal.focus');
         return;
       }
     });

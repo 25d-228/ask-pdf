@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { startServer, stopServer } from './claudeServer';
 import { AskPdfEditorProvider } from './pdfProvider';
 
 function getActiveTabUri(): vscode.Uri | undefined {
@@ -11,6 +12,10 @@ function getActiveTabUri(): vscode.Uri | undefined {
 
 export function activate(context: vscode.ExtensionContext): void {
   console.log('[ask-pdf] activated');
+
+  startServer()
+    .then((port) => console.log('[ask-pdf] Claude server ready on port', port))
+    .catch((err) => console.error('[ask-pdf] Failed to start Claude server:', err));
 
   context.subscriptions.push(AskPdfEditorProvider.register(context));
 
@@ -30,4 +35,6 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 }
 
-export function deactivate(): void {}
+export function deactivate(): void {
+  stopServer();
+}
