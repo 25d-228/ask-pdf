@@ -175,6 +175,14 @@ function scheduleBarUpdate() {
   selectionTimer = setTimeout(() => {
     selectionTimer = null;
     updateBar();
+    const range = selectionPageRange();
+    vscode.postMessage({
+      type: 'selectionUpdate',
+      text: range ? range.text : '',
+      startPage: range ? range.startPage : 0,
+      endPage: range ? range.endPage : 0,
+      totalPages: window.__pdfTotalPages ?? 0,
+    });
   }, 100);
 }
 

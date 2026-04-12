@@ -7,6 +7,19 @@ import * as vscode from 'vscode';
 import { WebSocket, WebSocketServer } from 'ws';
 
 // ---------------------------------------------------------------------------
+// Selection data model
+// ---------------------------------------------------------------------------
+
+export interface PdfSelection {
+  text: string;
+  filePath: string;
+  fileUrl: string;
+  startPage: number;
+  endPage: number;
+  totalPages: number;
+}
+
+// ---------------------------------------------------------------------------
 // Module-level state
 // ---------------------------------------------------------------------------
 
@@ -15,6 +28,9 @@ let serverPort: number | null = null;
 let httpServer: http.Server | null = null;
 let wss: WebSocketServer | null = null;
 const clients = new Set<WebSocket>();
+
+let currentSelection: PdfSelection | null = null;
+let latestSelection: PdfSelection | null = null;
 
 // ---------------------------------------------------------------------------
 // Lock file helpers
@@ -61,6 +77,203 @@ function removeLockFile(port: number): void {
 }
 
 // ---------------------------------------------------------------------------
+// Selection state management
+// ---------------------------------------------------------------------------
+
+export function setCurrentSelection(sel: PdfSelection): void {
+  currentSelection = sel;
+  if (sel.text.length > 0) {
+    latestSelection = sel;
+  }
+  broadcastSelectionChanged(sel);
+}
+
+export function clearCurrentSelection(): void {
+  currentSelection = null;
+}
+
+function selectionToPayload(sel: PdfSelection): unknown {
+  return {
+    success: true,
+    text: sel.text,
+    filePath: sel.filePath,
+    fileUrl: sel.fileUrl,
+    page: sel.startPage,
+    selection: {
+      start: { line: sel.startPage - 1, character: 0 },
+      end: { line: sel.endPage - 1, character: 0 },
+      isEmpty: sel.text.length === 0,
+    },
+  };
+}
+
+function broadcastSelectionChanged(sel: PdfSelection): void {
+  if (clients.size === 0) {
+    return;
+  }
+  broadcast('selection_changed', selectionToPayload(sel));
+}
+
+// ---------------------------------------------------------------------------
+// MCP tool helpers
+// ---------------------------------------------------------------------------
+
+function mcpText(inner: unknown): unknown {
+  return {
+    content: [{ type: 'text', text: JSON.stringify(inner) }],
+  };
+}
+
+const TOOL_SCHEMA = 'http://json-schema.org/draft-07/schema#';
+
+const TOOL_DEFINITIONS = [
+  {
+    name: 'getCurrentSelection',
+    description: 'Get the current text selection in the active PDF editor',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      $schema: TOOL_SCHEMA,
+    },
+  },
+  {
+    name: 'getLatestSelection',
+    description: 'Get the most recent non-empty text selection from any PDF editor',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      $schema: TOOL_SCHEMA,
+    },
+  },
+  {
+    name: 'getOpenEditors',
+    description: 'Get a list of all open PDF editor tabs',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      $schema: TOOL_SCHEMA,
+    },
+  },
+  {
+    name: 'getWorkspaceFolders',
+    description: 'Get the workspace folders open in VS Code',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      $schema: TOOL_SCHEMA,
+    },
+  },
+  {
+    name: 'getDiagnostics',
+    description: 'Get diagnostics for a file',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        uri: { type: 'string' },
+      },
+      additionalProperties: false,
+      $schema: TOOL_SCHEMA,
+    },
+  },
+];
+
+// ---------------------------------------------------------------------------
+// MCP tool handlers
+// ---------------------------------------------------------------------------
+
+function handleGetCurrentSelection(): unknown {
+  if (!currentSelection) {
+    return mcpText({ success: false, message: 'No active PDF editor found' });
+  }
+  return mcpText(selectionToPayload(currentSelection));
+}
+
+function handleGetLatestSelection(): unknown {
+  if (!latestSelection) {
+    return mcpText({ success: false, message: 'No selection available' });
+  }
+  return mcpText(selectionToPayload(latestSelection));
+}
+
+function handleGetOpenEditors(): unknown {
+  const tabs: unknown[] = [];
+  for (const [groupIndex, group] of vscode.window.tabGroups.all.entries()) {
+    for (const tab of group.tabs) {
+      const input = tab.input;
+      if (!(input instanceof vscode.TabInputCustom)) {
+        continue;
+      }
+      if (!input.uri.fsPath.endsWith('.pdf')) {
+        continue;
+      }
+      const isActiveTab = tab.isActive && group.isActive;
+      const sel = isActiveTab && currentSelection
+        ? {
+            start: { line: currentSelection.startPage - 1, character: 0 },
+            end: { line: currentSelection.endPage - 1, character: 0 },
+            isReversed: false,
+          }
+        : { start: { line: 0, character: 0 }, end: { line: 0, character: 0 }, isReversed: false };
+
+      tabs.push({
+        uri: input.uri.toString(),
+        isActive: tab.isActive,
+        isPinned: false,
+        isPreview: tab.isPreview,
+        isDirty: false,
+        label: tab.label,
+        groupIndex,
+        viewColumn: group.viewColumn,
+        isGroupActive: group.isActive,
+        fileName: input.uri.fsPath,
+        languageId: 'pdf',
+        lineCount: isActiveTab && currentSelection ? currentSelection.totalPages : 0,
+        isUntitled: false,
+        selection: sel,
+      });
+    }
+  }
+  return mcpText({ tabs });
+}
+
+function handleGetWorkspaceFolders(): unknown {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return mcpText({ success: true, folders: [], rootPath: undefined });
+  }
+  return mcpText({
+    success: true,
+    folders: folders.map((f) => ({
+      name: f.name,
+      uri: f.uri.toString(),
+      path: f.uri.fsPath,
+    })),
+    rootPath: folders[0].uri.fsPath,
+  });
+}
+
+function handleGetDiagnostics(): unknown {
+  return mcpText([]);
+}
+
+function handleToolCall(params: { name?: string }): DispatchResult {
+  switch (params.name) {
+    case 'getCurrentSelection':
+      return { value: handleGetCurrentSelection() };
+    case 'getLatestSelection':
+      return { value: handleGetLatestSelection() };
+    case 'getOpenEditors':
+      return { value: handleGetOpenEditors() };
+    case 'getWorkspaceFolders':
+      return { value: handleGetWorkspaceFolders() };
+    case 'getDiagnostics':
+      return { value: handleGetDiagnostics() };
+    default:
+      return { error: { code: -32601, message: `Tool not found: ${params.name}` } };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // JSON-RPC dispatcher
 // ---------------------------------------------------------------------------
 
@@ -84,11 +297,9 @@ function dispatch(req: JsonRpcRequest): DispatchResult {
     case 'prompts/list':
       return { value: { prompts: [] } };
     case 'tools/list':
-      return { value: { tools: [] } };
+      return { value: { tools: TOOL_DEFINITIONS } };
     case 'tools/call':
-      return {
-        error: { code: -32601, message: 'Tool not found' },
-      };
+      return handleToolCall(req.params as { name?: string });
     default:
       return {
         error: { code: -32601, message: `Method not found: ${req.method}` },

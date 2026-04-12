@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import * as vscode from 'vscode';
-import { broadcast, isConnected } from './claudeServer';
+import { broadcast, clearCurrentSelection, isConnected, setCurrentSelection } from './claudeServer';
 
 class PdfDocument implements vscode.CustomDocument {
   constructor(
@@ -84,6 +84,22 @@ export class AskPdfEditorProvider implements vscode.CustomReadonlyEditorProvider
           lineEnd: endPage,
         });
         vscode.commands.executeCommand('workbench.action.terminal.focus');
+        return;
+      }
+      if (msg.type === 'selectionUpdate') {
+        const text = typeof msg.text === 'string' ? msg.text : '';
+        if (text.length === 0) {
+          clearCurrentSelection();
+        } else {
+          setCurrentSelection({
+            text,
+            filePath: document.uri.fsPath,
+            fileUrl: document.uri.toString(),
+            startPage: Number(msg.startPage),
+            endPage: Number(msg.endPage),
+            totalPages: Number(msg.totalPages),
+          });
+        }
         return;
       }
     });
