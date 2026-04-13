@@ -13,7 +13,7 @@ eslint.config.mjs
 **/*.ts
 **/tsconfig*.json
 .eslintcache
-ask-pdf-development-plan.md
+docs/**
 claudecode-nvim-analysis.md
 *.pdf
 *.vsix
