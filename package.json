@@ -2,7 +2,7 @@
   "name": "ask-pdf",
   "displayName": "ask-pdf",
   "description": "Render PDFs in a VS Code webview and send selected passages to Claude Code.",
-  "version": "0.0.4",
+  "version": "0.0.0",
   "publisher": "vibe-dog",
   "license": "MIT",
   "repository": {
